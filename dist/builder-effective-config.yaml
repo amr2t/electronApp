@@ -1,0 +1,15 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.example.myapp
+win:
+  target: nsis
+  icon: path/to/your/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  include: path/to/installer.nsh
+files: []
+electronVersion: 31.0.0
