@@ -1,4 +1,4 @@
-#progress-container {
+  #progress-container {
     display: none;
     width: 100%;
     background-color: #f3f3f3;
@@ -12,4 +12,9 @@
     text-align: center;
     line-height: 30px;
     color: white;
+  }
+
+  #p {
+    display: 'block';
+
   }

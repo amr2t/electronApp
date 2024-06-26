@@ -12,11 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 window.electronAPI.onDownloadProgress((event, progress) => {
+  console.log(progress);
+  const p = document.getElementById('p');
   const progressBar = document.getElementById('progress-bar');
   const progressContainer = document.getElementById('progress-container');
   progressContainer.style.display = 'block';
   progressBar.style.width = `${progress.percent * 100}%`;
   progressBar.textContent = `${Math.round(progress.percent * 100)}%`;
+  p.textContent = `${progress.transferredBytes+ '/' +progress.totalBytes}`;
 });
 
 window.electronAPI.onDownloadComplete(() => {

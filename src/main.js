@@ -33,6 +33,7 @@ async function createWindow() {
 
 
 ipcMain.handle('download-postgres', async (event, url) => {
+  console.log(url);
   const mainWindow = BrowserWindow.getFocusedWindow();
   const { download } = await import('electron-dl');
 
