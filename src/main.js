@@ -1,7 +1,7 @@
 // import {preload} from './preload.js';
 // import {renderer} from './renderer.js';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 // const axios = require('axios');
 const fs = require('fs');
@@ -33,6 +33,15 @@ async function createWindow() {
 
 
 ipcMain.handle('download-postgres', async (event, url) => {
+  dialog.showMessageBox({
+    type: 'error' ,
+    buttons: ['Contact', 'Ok'],
+    defaultId: 0,
+    message: 'Are you sure you want to download PostgreSQL?',
+    detail: 'Downloading PostgreSQL will take a while. Do you want to continue?',
+    cancelId: 1,
+    
+  })
   console.log(url);
   const mainWindow = BrowserWindow.getFocusedWindow();
   const { download } = await import('electron-dl');
@@ -71,6 +80,15 @@ ipcMain.handle('download-something', async (event, url) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('notify', (event, dialog) => {
+  dialog.showMessageBox({
+    message: 'Notification',  
+    buttons: ['OK', 'Contact','Cancel'],
+    defaultId: 0,
+  })
+  console.log(message);
 });
 
 app.on('ready', createWindow);
