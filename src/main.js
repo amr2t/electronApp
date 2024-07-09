@@ -28,6 +28,7 @@ async function createWindow() {
 
   mainWindow.loadFile(indexPath);
   mainWindow.webContents.openDevTools();
+  //------------------------
   
 }
 
