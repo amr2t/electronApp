@@ -1,10 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-// const axios = require('axios');
-const fs = require('fs');
-const { exec } = require('child_process');
-// const { download } = require('electron-dl');
-const ProgressBar = require('electron-progressbar');
+const { Client } = require('pg');
+
+const preloadPath = path.join(__dirname, 'preload.js');
+const indexPath = path.join(__dirname, 'index.html');
+
+let downloadItem = null; // Store the download item for pausing/resuming
 
 async function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -19,21 +20,15 @@ async function createWindow() {
 
   mainWindow.loadFile(indexPath);
   mainWindow.webContents.openDevTools();
-  
+
+  mainWindow.webContents.on('did-start-loading', () => {
+    downloadItem = null; // Reset download item on new navigation
+  });
 }
 
-
-ipcMain.handle('download-postgres', async (event, url) => {
-  dialog.showMessageBox({
-    type: 'error' ,
-    buttons: ['Contact', 'Ok'],
-    defaultId: 0,
-    message: 'Are you sure you want to download PostgreSQL?',
-    detail: 'Downloading PostgreSQL will take a while. Do you want to continue?',
-    cancelId: 1,
-    
-  })
-  console.log(url);
+// Function to initiate download and return download item
+async function startDownload(url) {
+  const { download } = await import('electron-dl');
   const mainWindow = BrowserWindow.getFocusedWindow();
   try {
     downloadItem = await download(mainWindow, url, {
@@ -84,24 +79,124 @@ ipcMain.handle('pause-download', async () => {
   }
 });
 
-ipcMain.handle('download-something', async (event, url) => {
-  try {
-    const { download } = await import('electron-dl');
-    await download(BrowserWindow.getFocusedWindow(), url);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
+ipcMain.handle('resume-download', async () => {
+  if (downloadItem) {
+    try {
+      await downloadItem.resume();
+      console.log('Download resumed successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error resuming download:', error.message);
+      return { success: false, error: error.message };
+    }
+  } else {
+    return { success: false, message: 'No paused download to resume' };
   }
 });
 
-ipcMain.handle('notify', (event, dialog) => {
-  dialog.showMessageBox({
-    message: 'Notification',  
-    buttons: ['OK', 'Contact','Cancel'],
-    defaultId: 0,
-  })
-  console.log(message);
-});
+
+
+async function checkConnection() {
+  const client = new Client({
+    host: 'localhost', // Replace with your PostgreSQL server hostname
+    port: 5432, // Default port for PostgreSQL
+    user: 'postgres', // Replace with your PostgreSQL username
+    password: '1234567890', // Replace with your PostgreSQL password
+    database: 'electronApp' // Replace with your database name
+  });
+
+  try {
+    await client.connect();
+    console.log('Connected to PostgreSQL database successfully.');
+  } catch (err) {
+    console.error('Error connecting to database:', err);
+    // Handle connection errors (e.g., display an error message to the user)
+  } finally {
+    await client.end();
+  }
+}
+
+checkConnection();
+
+
+
+async function checkExtensions() {
+  const client = new Client({
+    // Your connection details (host, port, user, password)
+    host: 'localhost', // Replace with your PostgreSQL server hostname
+    port: 5432, // Default port for PostgreSQL
+    user: 'postgres', // Replace with your PostgreSQL username
+    password: '1234567890', // Replace with your PostgreSQL password
+    database: 'electronApp' // Replace with your database name
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query('SELECT * FROM pg_extension;');
+    const installedExtensions = result.rows.map((row) => row.name);
+
+    // Check if the desired extensions are present in the list
+    // (implement logic to compare with expected extensions)
+
+    console.log('Installed Extensions:', installedExtensions);
+  } catch (err) {
+    console.error('Error checking extensions:', err);
+  } finally {
+    await client.end();
+  }
+}
+
+checkExtensions();
+
+// async function performCrudOperations() {
+//   const client = new Client({
+//     host: 'localhost', // Replace with your PostgreSQL server hostname
+//     port: 5432, // Default port for PostgreSQL
+//     user: 'postgres', // Replace with your PostgreSQL username
+//     password: '1234567890', // Replace with your PostgreSQL password
+//     database: 'electronApp' // Replace with your database name
+//   });
+
+//   try {
+//     await client.connect();
+
+//     // 2. INSERT Example
+//     const newEmail = 'jane.doe@example.com';
+//     const insertQuery = 'INSERT INTO users (email) VALUES ($1)';
+//     await client.query(insertQuery, [newEmail]);
+//     console.log('INSERT successful');
+
+
+//     // 1. SELECT Example
+//     const name = 'John Doe';
+//     const selectQuery = 'SELECT * FROM users WHERE name = $1'; // Prepared statement
+//     const selectResult = await client.query(selectQuery, [name]);
+//     console.log('SELECT results:', selectResult.rows);
+
+    
+//     // 3. UPDATE Example (assuming an ID column)
+//     const userId = 1;
+//     const newName = 'Jane Doe';
+//     const updateQuery = 'UPDATE users SET name = $1 WHERE id = $2';
+//     await client.query(updateQuery, [newName, userId]);
+//     console.log('UPDATE successful');
+
+//     // 4. DELETE Example (assuming an ID column)
+//     const deleteId = 2;
+//     const deleteQuery = 'DELETE FROM users WHERE id = $1';
+//     const deleteResult = await client.query(deleteQuery, [deleteId]);
+//     console.log('DELETE rows affected:', deleteResult.rowCount);
+
+//   } catch (err) {
+//     console.error('Error during CRUD operations:', err);
+//   } finally {
+//     await client.end();
+//   }
+// }
+
+// performCrudOperations();
+
+// Other IPC handlers and app lifecycle events...
 
 app.on('ready', createWindow);
 
