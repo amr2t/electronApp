@@ -1,10 +1,10 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-
-const preloadPath = path.join(__dirname, 'preload.js');
-const indexPath = path.join(__dirname, 'index.html');
-
-let downloadItem = null; // Store the download item for pausing/resuming
+// const axios = require('axios');
+const fs = require('fs');
+const { exec } = require('child_process');
+// const { download } = require('electron-dl');
+const ProgressBar = require('electron-progressbar');
 
 async function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -19,15 +19,21 @@ async function createWindow() {
 
   mainWindow.loadFile(indexPath);
   mainWindow.webContents.openDevTools();
-
-  mainWindow.webContents.on('did-start-loading', () => {
-    downloadItem = null; // Reset download item on new navigation
-  });
+  
 }
 
-// Function to initiate download and return download item
-async function startDownload(url) {
-  const { download } = await import('electron-dl');
+
+ipcMain.handle('download-postgres', async (event, url) => {
+  dialog.showMessageBox({
+    type: 'error' ,
+    buttons: ['Contact', 'Ok'],
+    defaultId: 0,
+    message: 'Are you sure you want to download PostgreSQL?',
+    detail: 'Downloading PostgreSQL will take a while. Do you want to continue?',
+    cancelId: 1,
+    
+  })
+  console.log(url);
   const mainWindow = BrowserWindow.getFocusedWindow();
   try {
     downloadItem = await download(mainWindow, url, {
@@ -78,22 +84,24 @@ ipcMain.handle('pause-download', async () => {
   }
 });
 
-ipcMain.handle('resume-download', async () => {
-  if (downloadItem) {
-    try {
-      await downloadItem.resume();
-      console.log('Download resumed successfully');
-      return { success: true };
-    } catch (error) {
-      console.error('Error resuming download:', error.message);
-      return { success: false, error: error.message };
-    }
-  } else {
-    return { success: false, message: 'No paused download to resume' };
+ipcMain.handle('download-something', async (event, url) => {
+  try {
+    const { download } = await import('electron-dl');
+    await download(BrowserWindow.getFocusedWindow(), url);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 });
 
-// Other IPC handlers and app lifecycle events...
+ipcMain.handle('notify', (event, dialog) => {
+  dialog.showMessageBox({
+    message: 'Notification',  
+    buttons: ['OK', 'Contact','Cancel'],
+    defaultId: 0,
+  })
+  console.log(message);
+});
 
 app.on('ready', createWindow);
 
