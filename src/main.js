@@ -1,21 +1,12 @@
-// import {preload} from './preload.js';
-// import {renderer} from './renderer.js';
-
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-// const axios = require('axios');
-const fs = require('fs');
-const { exec } = require('child_process');
-// const { download } = require('electron-dl');
-const ProgressBar = require('electron-progressbar');
+
+const preloadPath = path.join(__dirname, 'preload.js');
+const indexPath = path.join(__dirname, 'index.html');
+
+let downloadItem = null; // Store the download item for pausing/resuming
 
 async function createWindow() {
-  // console.log('object');
-  const preloadPath = path.join(__dirname, 'preload.js');
-  // console.log(`Preload script path: ${preloadPath}`);
-  // console.log(`Does preload.js exist? ${fs.existsSync(preloadPath)}`);
-  const indexPath = path.join(__dirname, 'index.html');
-
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
@@ -28,68 +19,81 @@ async function createWindow() {
 
   mainWindow.loadFile(indexPath);
   mainWindow.webContents.openDevTools();
-  
+
+  mainWindow.webContents.on('did-start-loading', () => {
+    downloadItem = null; // Reset download item on new navigation
+  });
 }
 
-
-ipcMain.handle('download-postgres', async (event, url) => {
-  dialog.showMessageBox({
-    type: 'error' ,
-    buttons: ['Contact', 'Ok'],
-    defaultId: 0,
-    message: 'Are you sure you want to download PostgreSQL?',
-    detail: 'Downloading PostgreSQL will take a while. Do you want to continue?',
-    cancelId: 1,
-    
-  })
-  console.log(url);
-  const mainWindow = BrowserWindow.getFocusedWindow();
+// Function to initiate download and return download item
+async function startDownload(url) {
   const { download } = await import('electron-dl');
-
+  const mainWindow = BrowserWindow.getFocusedWindow();
   try {
-    await download(mainWindow, url, {
+    downloadItem = await download(mainWindow, url, {
       onProgress: (progress) => {
         mainWindow.webContents.send('download-progress', progress);
       },
       onCompleted: () => {
+        downloadItem = null; // Clear download item on completion
         mainWindow.webContents.send('download-complete');
-      }
+      },
     });
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
 
-ipcMain.handle('install-postgres', (event, installerPath) => {
-  exec(installerPath, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`exec error: ${error}`);
-      return;
+    // Check for pause and resume methods
+    if (typeof downloadItem.pause !== 'function' || typeof downloadItem.resume !== 'function') {
+      console.warn('The downloadItem does not support pause/resume functionality.');
+      downloadItem.pause = () => Promise.reject(new Error('Pause not supported'));
+      downloadItem.resume = () => Promise.reject(new Error('Resume not supported'));
     }
-    console.log(`stdout: ${stdout}`);
-    console.error(`stderr: ${stderr}`);
-  });
-});
 
-ipcMain.handle('download-something', async (event, url) => {
+    return downloadItem; // Return download item for external use
+  } catch (error) {
+    console.error('Error during download:', error);
+    throw error; // Throw error for external handling
+  }
+}
+
+ipcMain.handle('download-postgres', async (event, url) => {
   try {
-    const { download } = await import('electron-dl');
-    await download(BrowserWindow.getFocusedWindow(), url);
+    await startDownload(url);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('notify', (event, dialog) => {
-  dialog.showMessageBox({
-    message: 'Notification',  
-    buttons: ['OK', 'Contact','Cancel'],
-    defaultId: 0,
-  })
-  console.log(message);
+ipcMain.handle('pause-download', async () => {
+  if (downloadItem) {
+    try {
+      await downloadItem.pause();
+      console.log('Download paused successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error pausing download:', error.message);
+      return { success: false, error: error.message };
+    }
+  } else {
+    return { success: false, message: 'No active download to pause' };
+  }
 });
+
+ipcMain.handle('resume-download', async () => {
+  if (downloadItem) {
+    try {
+      await downloadItem.resume();
+      console.log('Download resumed successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error resuming download:', error.message);
+      return { success: false, error: error.message };
+    }
+  } else {
+    return { success: false, message: 'No paused download to resume' };
+  }
+});
+
+// Other IPC handlers and app lifecycle events...
 
 app.on('ready', createWindow);
 
@@ -104,4 +108,3 @@ app.on('activate', () => {
     createWindow();
   }
 });
-

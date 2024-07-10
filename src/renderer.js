@@ -4,11 +4,39 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Download button clicked');
     window.electronAPI.downloadPostgres('https://sbp.enterprisedb.com/getfile.jsp?fileid=1259105')
       .then(response => {
+        console.log(response);
         if (response.success) {
           console.log('Postgres downloaded successfully');
         } else {
           console.error('Error downloading Postgres:', response.error);
           alert("not possible jao apna dekh");
+        }
+      });
+  });
+
+  document.getElementById('pause-button').addEventListener('click', () => {
+    window.electronAPI.pauseDownload()
+      .then(response => {
+        if (response.success) {
+          console.log('Download paused');
+          // Update UI to indicate download paused (disable button, etc.)
+        } else {
+          // console.log(downloadItem);
+          console.error('Error pausing download:', response.error);
+          // Handle error (display error message to user)
+        }
+      });
+  });
+
+  document.getElementById('resume-button').addEventListener('click', () => {
+    window.electronAPI.resumeDownload()
+      .then(response => {
+        if (response.success) {
+          console.log('Download resumed');
+          // Update UI to indicate download resumed (enable button, etc.)
+        } else {
+          console.error('Error resuming download:', response.error);
+          // Handle error (display error message to user)
         }
       });
   });
@@ -40,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
  });
 
  document.getElementById('install').addEventListener('click', () => {
-  ipcRenderer.invoke('install-postgres', '/path/to/downloaded/installer')
+  window.electronAPI.installPostgres('/path/to/downloaded/installer')
     .then(response => {
       if (response.success) {
         console.log('Postgres installed successfully');
@@ -52,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
  });
 
  document.getElementById('button2').addEventListener('click', () => {
-  ipcRenderer.invoke('download-something', 'http://example.com/somefile')
+  window.electronAPI.downloadSomething('http://example.com/somefile')
     .then(response => {
       if (response.success) {
         console.log('File downloaded successfully');
@@ -64,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
  document.getElementById('notify').addEventListener('click', () => {
   console.log('Notify button clicked');
-  ipcRenderer.invoke('notify', 'Hello, World!');
+  window.electronAPI.notify('Hello, World!');
  });
 
 });
